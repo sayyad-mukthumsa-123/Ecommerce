@@ -1,0 +1,75 @@
+{
+  "inventory_date": "2026-11-19",
+  "source_directory": "../data/raw/olist_trimmed_1500_relational/",
+  "source_description": "Final Olist real-data relational subset",
+  "expected_files_present": true,
+  "unexpected_files": [],
+  "files": [
+    {
+      "name": "olist_customers_dataset.csv",
+      "bytes": 104436,
+      "rows": 1208,
+      "sha256": "C6FAE60974947C68AB71A5659CF611F2ADA05EF09F704E262914FBAB90C68BCE"
+    },
+    {
+      "name": "olist_geolocation_dataset.csv",
+      "bytes": 56145,
+      "rows": 956,
+      "sha256": "B5F56E70AB482110F4F145FBAD3960AC5B0746E1999C9C6F5659E5E5D178AFA7"
+    },
+    {
+      "name": "olist_order_items_dataset.csv",
+      "bytes": 198478,
+      "rows": 1500,
+      "sha256": "CE6515C85470A7E7FBB386BEB892AD2415CC672BB0CBDCE9A6CFEAD13197E868"
+    },
+    {
+      "name": "olist_order_payments_dataset.csv",
+      "bytes": 70401,
+      "rows": 1303,
+      "sha256": "95E9DBB077C3B648A169103238E9EF4FCEE969CD54CB4FDE78952B6F27F9EF6A"
+    },
+    {
+      "name": "olist_order_reviews_dataset.csv",
+      "bytes": 177584,
+      "rows": 1298,
+      "sha256": "55FC9D6BC8EE409D5B2B486E18B25E41EA814990F2D70694F848A8425286CDD0"
+    },
+    {
+      "name": "olist_orders_dataset.csv",
+      "bytes": 212755,
+      "rows": 1208,
+      "sha256": "146194ED4631CB8A8B0785C8514634BDD107D60ACA5A8A7DBB963E4E5C2D4242"
+    },
+    {
+      "name": "olist_products_dataset.csv",
+      "bytes": 93256,
+      "rows": 1096,
+      "sha256": "445AB281D3DCA87ADC188E36ABC3754A23F129EDABD3AC1E715483544439D9FC"
+    },
+    {
+      "name": "olist_sellers_dataset.csv",
+      "bytes": 26256,
+      "rows": 494,
+      "sha256": "61994F7567474E720944646B77248021803E923D1CC808C7DCF91410FB86DECF"
+    },
+    {
+      "name": "product_category_name_translation.csv",
+      "bytes": 2013,
+      "rows": 57,
+      "sha256": "95E497EE0F0D514A3237D37F636C51AFB267F449594A9D529C7B92ABAD8AC275"
+    },
+    {
+      "name": "README_RELATIONSHIPS.md",
+      "bytes": 1916,
+      "sha256": "C45E1A4A39C3D2598E68C0689B6426EC83DBAB2C790E85759F3CFB0195104C64"
+    },
+    {
+      "name": "validation_report.json",
+      "bytes": 2431,
+      "sha256": "984EDF1BF678F89C95D6143E9C3768EC52E2859FA38FA87B9187852D72D10514"
+    }
+  ],
+  "validation_report_row_counts_match": true,
+  "raw_files_overwritten": false
+}

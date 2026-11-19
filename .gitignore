@@ -17,3 +17,13 @@ __pycache__/
 # Windows metadata
 Thumbs.db
 Desktop.ini
+
+# Project data files are allowed to be committed.
+# Keep only local/generated data artifacts excluded below.
+
+# Generated analysis and local run artifacts
+*.log
+*.sqlite
+*.sqlite3
+reports/output/
+exports/
