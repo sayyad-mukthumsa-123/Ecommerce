@@ -1,0 +1,13 @@
+table_name,column_name,row_identifier,original_value,handled_value,handling_method,target_column,reason
+orders,order_approved_at,d69e5d356402adc8cf17e08b5033acfb,NULL,2017-02-19 01:28:47,imputation_in_derived_analysis_column,order_approved_at_for_analysis,Retain the delivered order and provide a complete analysis timeline without overwriting the source null.
+payments,payment_value,b23878b3e8eb4d25a158f57d96331b18|4,0.0,0.0,retained_valid_zero_no_imputation,payment_value,"Zero voucher payment is a valid observed amount, not a missing value."
+order_items,freight_value,1235febb7f139ccf94d83ff97ae8e889|1,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,1a2582ca80feaaf937cc94d437ba1635|1,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,5f8727348fdce5ad81ba441d3bf9e18c|1,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,5f8727348fdce5ad81ba441d3bf9e18c|2,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,84f89b4f4b956843277c6b990bd06b2f|1,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,84f89b4f4b956843277c6b990bd06b2f|2,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,84f89b4f4b956843277c6b990bd06b2f|3,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,84f89b4f4b956843277c6b990bd06b2f|4,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,84f89b4f4b956843277c6b990bd06b2f|5,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.
+order_items,freight_value,bf25ff262495b0b876bc4f594f736ecf|1,0.0,0.0,retained_valid_zero_no_imputation,freight_value,Zero freight is treated as free shipping because the item has a valid positive price and order context.

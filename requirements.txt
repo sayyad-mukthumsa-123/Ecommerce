@@ -64,13 +64,15 @@ nbformat==5.11.1
 nest-asyncio2==1.7.2
 notebook==7.6.2
 notebook_shim==0.2.4
-numpy==2.5.4
+numpy==2.5.5
 packaging==26.3
-pandas==3.0.6
+pandas==3.1.1
 fastapi==0.163.1
+pytest==9.2.0
 pydantic==2.14.3
 PyMySQL==1.2.4
 SQLAlchemy==2.1.8
+uvicorn==0.54.0
 pandocfilters==1.5.1
 parso==0.8.7
 pillow==13.0.0
@@ -83,7 +85,7 @@ pycparser==3.0
 Pygments==2.21.0
 pyparsing==3.3.3
 python-dateutil==2.9.0.post0
-python-dotenv==1.2.3
+python-dotenv==1.2.4
 python-json-logger==4.2.0
 pywinpty==3.0.5
 PyYAML==6.0.3

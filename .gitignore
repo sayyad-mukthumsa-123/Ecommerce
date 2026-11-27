@@ -8,6 +8,7 @@
 venv/
 __pycache__/
 *.pyc
+**/.ipynb_checkpoints/
 
 # Python tooling caches
 .pytest_cache/
@@ -27,3 +28,7 @@ Desktop.ini
 *.sqlite3
 reports/output/
 exports/
+
+# Local/generated analytics pipeline outputs
+data/analytics/*.tmp
+data/quality/*.tmp

@@ -4,9 +4,18 @@
 
 - Document type: Project Requirements Document (PRD) + Software Requirements Specification (SRS) + Implementation Outline
 - Prepared: 19 November 2026
-- Status: Planning runbook; the final raw-data bundle has been inspected and validated, but implementation and report results are not yet claimed
+- Status: Current implementation and planning reference; the raw bundle, MySQL load, FastAPI API, Step 6 extracts, and nine-page Power BI report are implemented. Predictive CLV and production deployment remain future work.
 - Project focus: Python backend engineering, MySQL data management, e-commerce analytics, and eventual Power BI reporting
-- Source distinction: The overall architecture and advanced modeling requirements come from the research reports and checklist shared in this conversation. Endpoint names, response formats, acceptance tests, implementation priorities, and sample code conventions below are proposed implementation decisions unless explicitly identified as research requirements. Verify them against your code and dataset before treating them as finalized.
+- Source distinction: Sections describing the current batch, backend, analytics extracts, and Power BI pages are verified against the workspace. Advanced modeling, deployment, and future-batch requirements remain planning guidance and must not be read as implemented unless explicitly marked.
+
+## Current implementation snapshot — 27 November 2026
+
+- The current raw subset contains 1,208 orders, 539 person-level customers, and 380 repeat customers; all current orders are delivered.
+- The nine prepared MySQL inputs are loaded and reconciled. Step 6 produces order-fact, RFM, cohort, delivery, and descriptive CLV transaction extracts under [`data/analytics/`](../data/analytics/).
+- The implemented FastAPI application is documented in [`step_7_fastapi_backend.md`](./step_7_fastapi_backend.md). It includes health, catalog, customer, order, and analytics routes.
+- [`Reports/Overview.pbix`](../Reports/Overview.pbix) contains nine report pages and 99 visual containers. The current report is descriptive; it does not claim a predictive CLV model.
+- The repeatable future-batch and report-refresh process is documented in [`future_batch_data_runbook.md`](./future_batch_data_runbook.md).
+- The remaining roadmap is predictive CLV validation, production hardening, authentication, deployment, and future-batch automation beyond the current local process.
 
 ## 1. Project overview
 
@@ -123,121 +132,139 @@ Exit criteria: the analyst understands the data grain and limitations, the profi
 
 ### Step 3 — Pre-load preprocessing and quality checks
 
-1. Use Pandas and NumPy to read the raw CSVs, normalize data types, parse dates, validate numeric amounts, preserve ZIP prefixes as strings, and validate review scores and identifiers.
-2. Validate primary keys, composite keys, foreign-key coverage, required columns, and duplicate behavior before import.
-3. Treat `review_id` as non-unique and choose a safe destination-table identifier without changing the source file.
-4. Preserve optional missing values; do not silently fill review comments, product attributes, delivery timestamps, or other source fields.
-5. Standardize column names only in prepared copies/data frames and create a raw-to-destination data dictionary.
-6. Keep order items and payments as separate data frames; do not join them before order-level aggregation.
-7. Quarantine invalid rows and exceptions with a reason; never silently drop them.
-8. Define `customer_id` for order-level linkage and `customer_unique_id` for person-level cohorts, retention, RFM, and CLV.
-9. Define separate measures for `item_revenue`, `freight_collected`, and `order_payment_total`, and document the delivered-order inclusion rule.
-10. State the sampling caveat on every report: this is a repeat-customer-prioritized subset and is not representative of the full Olist population.
+1. Work from immutable copies of the nine raw CSVs. Confirm the Step 2 inventory before transforming: 1,208 orders, 1,208 customers, 1,500 items, 1,303 payments, 1,298 reviews, 1,096 products, 494 sellers, 57 translations, and 956 geolocation rows.
+2. Use Pandas and NumPy to normalize data types. Parse all order, shipping, and review timestamps as datetimes; preserve all business identifiers and ZIP prefixes as strings, including customer, seller, and geolocation ZIP prefixes.
+3. Validate the observed time scope and status values: purchase dates run from 2016-10-03 through 2018-08-28, the subset contains 22 observed purchase months, and all 1,208 current orders are `delivered`. Record that the current subset cannot support status-to-status comparisons because no other statuses are present.
+4. Validate primary keys, composite keys, foreign-key coverage, required columns, and duplicate behavior before import. Enforce `order_id`, `customer_id`, `product_id`, and `seller_id` uniqueness; enforce `(order_id, order_item_id)` and `(order_id, payment_sequential)` as composite keys; and confirm every order has at least one item, payment, and review.
+5. Treat `review_id` as a source attribute, not a primary key: the preprocessing notebook found 254 rows belonging to repeated `review_id` values. Add a destination surrogate key or another validated safe key while preserving the original `review_id` unchanged.
+6. Apply the approved null-handling decisions consistently. Preserve the source `order_approved_at` null, but impute the approved value `2017-02-19 01:28:47` only in the derived `order_approved_at_for_analysis` column for order `d69e5d356402adc8cf17e08b5033acfb`; retain an imputation flag and method. Preserve raw product attributes and optional comments unchanged, but impute the 28 missing prepared product count values using prepared-subset medians (`product_name_lenght=52`, `product_description_lenght=555`, `product_photos_qty=1`) and retain flags/methods. Keep product category nulls as nullable source values with flags. Treat the one zero payment and ten zero freight values as valid observed zeroes: retain them and do not impute or delete them.
+7. Standardize column names only in prepared copies/data frames and create a raw-to-destination data dictionary. Correct source spelling only in the destination mapping when appropriate, while retaining the original source column names in the raw-to-prepared audit.
+8. Keep orders, order items, payments, and reviews at their original grains. Keep order items and payments as separate data frames and aggregate them independently before creating any order-grain fact table; do not join raw items and payments directly.
+9. Re-run relationship checks explicitly, including the order-to-customer check that was commented out in the notebook. Confirm all item order/product/seller references, payment and review order references, product-category translations, and customer/seller geolocation references.
+10. Validate numeric fields before import: review scores must be 1–5; prices, freight, payments, installments, and product dimensions must have valid domains; retain the one zero payment and ten zero freight values as valid observed values with zero imputation/deletion counts; and flag extreme right-tail values rather than deleting them automatically.
+11. Record the observed numeric baseline for reconciliation: item price has median BRL 69.90 and maximum BRL 4,399.87; freight has median BRL 16.11 and maximum BRL 196.94; payment value has median BRL 89.75, zero minimum, and maximum BRL 4,513.32; installments range from 1 to 21.
+12. Define `customer_id` for order-level linkage and `customer_unique_id` for person-level cohorts, retention, RFM, and CLV. The current baseline is 539 unique people and 380 repeat customers; use this as a reconciliation check, not as a population estimate.
+13. Define separate measures for `item_revenue`, `freight_collected`, and `order_payment_total`. Keep all amounts labeled as BRL, document whether each measure is item-, freight-, or payment-based, and do not use one as a substitute for another.
+14. Define the current eligible-order rule as delivered orders for realized sales and retention, while retaining `order_status` for operational/API filtering. Document that the current data was selected from delivered orders and is not a representative full-population sample.
+15. Quarantine invalid rows and exceptions with a reason; never silently drop them. Produce exception outputs for invalid dates, key violations, orphan references, invalid review scores, invalid numeric domains, and any row-count mismatch.
+16. State the sampling caveat on every report: this is a repeat-customer-prioritized subset, so the high repeat-customer share, cohort retention, review distribution, and any CLV result are educational subset results rather than market estimates.
 
-Exit criteria: the metric definitions are approved and the same names/definitions are used by SQL, API responses, and Power BI measures.
+Exit criteria: prepared copies pass type, key, relationship, null, and domain checks; the review-key strategy is documented; exception rows are accounted for; metric definitions are approved; and the same names/definitions are used by SQL, API responses, and Power BI measures.
 
 ### Step 4 — Prepare MySQL tables for direct table-data import
 
-1. Create the MySQL database and user in MySQL Workbench, using appropriate character encoding and least-privilege credentials.
-2. Use the MySQL Workbench Table Data Import Wizard to create or select destination tables for each CSV. The wizard supports CSV import, destination selection, column mapping, and type/encoding configuration.
-3. Import parent/reference tables first: customers, products, sellers, category translations, and geolocation.
-4. Prepare destination tables for orders, order items, payments, and reviews. Ensure the table columns match the prepared CSV headers and data types.
-5. Do not use a query-driven ETL or an ORM-driven initial load. SQLAlchemy/PyMySQL will be used later by FastAPI and analytical scripts to connect to the loaded MySQL database.
-6. Before importing reviews, decide how the destination table will preserve the non-unique source `review_id`; retain the source value even if an additional destination identifier is needed.
-7. Capture screenshots or export the Workbench import settings and record the destination table names, column mappings, encoding, delimiter, and import batch ID.
+1. From this step onward, use only the verified files in `data/prepared/` as operational inputs. Use `data/raw/olist_trimmed_1500_relational/` only as immutable audit/reference data; never import raw CSVs directly. Apply the approved Step 3 date-correction policy before MySQL import. For the seven orders with carrier dates before approval, set the prepared `order_delivered_carrier_date` equal to the approved analysis timeline; for the one order with customer delivery before carrier handoff, set the prepared delivery date equal to the carrier date. Preserve the original raw timestamps in audit columns, add correction flags/reasons, and do not alter raw CSVs. Import both the nullable source `order_approved_at` and derived `order_approved_at_for_analysis`; the latter contains one documented imputation and has no remaining nulls.
+2. Register the generated `data/quality/date_corrections.csv`, `step3_preparation_summary.csv`, and import manifest as Step 3 audit artifacts. Confirm that the nine files in `data/prepared/` exist, their row counts match the manifest, and their schemas are approved before import. Treat notebook file-save problems as environment issues, not data-quality findings; the prepared files and audit artifacts are the controlled inputs/evidence for import.
+3. Use the already-created MySQL database `ecommerce`; do not recreate or drop the database. Confirm that the Workbench connection points to `ecommerce` before creating tables. No persistent SQL script is required for this step.
+4. Create or verify the nine destination tables in `ecommerce` before importing any CSV. The current implementation stores identifiers and ZIP prefixes as text-compatible values, numeric flags as integer values, counts/sequences/scores as integers, measurements and monetary values as doubles, and timestamps as datetimes. Keep all nullable source and optional fields nullable. Verify the actual live schema before changing this mapping.
+5. Use the MySQL Workbench Table Data Import Wizard only after the tables exist. Select the nine prepared inputs, including `geolocation_prepared_mysql_normalized.csv` and `reviews_prepared_mysql_binary.csv`, and record each file path, row count, columns, encoding, delimiter, null marker, and validation status before loading. Missing values in every prepared CSV are represented by the MySQL text-import marker `\\N`; do not replace them with empty strings, the literal word `NULL`, or numeric zero. Configure the import to interpret `\\N` as SQL `NULL` and keep the corresponding destination columns nullable.
+6. Import parent/reference tables first: category translation, geolocation, customers, sellers, and products. Then import orders, order items, payments, and reviews. The Step 4 table definitions intentionally do not add foreign keys because the allowed direct-import types do not support indexed `TEXT` keys reliably; validate all relationships in Step 5 after loading.
+7. Keep source identifiers and source nulls unchanged. Store the null-handling decision log with the batch, keep `order_approved_at_for_analysis` separate from source `order_approved_at`, retain zero payment/freight values unchanged, and use `review_record_id` as the review row identifier because source `review_id` is repeated. The current controlled import files are `geolocation_prepared_mysql_normalized.csv` and `reviews_prepared_mysql_binary.csv`; do not substitute older script-default names without reviewing the mapping.
+7. Keep source identifiers and source nulls unchanged. Store the null-handling decision log with the batch, and keep `order_approved_at_for_analysis` explicitly separate from source `order_approved_at`. Add audit fields such as `batch_id`, `source_file`, `preprocessing_status`, and `validation_exception` rather than overwriting source data.
+8. Do not use a query-driven ETL or an ORM-driven initial load. SQLAlchemy/PyMySQL will be used later by FastAPI and analytical scripts to connect to the loaded MySQL database.
+9. Capture screenshots or export the Workbench import settings and record destination table names, column mappings, encoding, delimiter, prepared-file paths, exception counts, and import batch ID.
 
-Exit criteria: all destination tables exist, their columns/types match the prepared files, import settings are recorded, and no raw file has been overwritten.
+Exit criteria: the nine tables exist in the existing `ecommerce` database, their column counts and allowed MySQL types match the prepared inputs, all eight timestamp corrections and the one derived approval imputation remain reproducible from audit files, import settings are ready to be recorded, and no raw or prepared file has been overwritten.
 
 ### Step 5 — Import data into MySQL and perform load QA
 
-1. Run the Workbench Table Data Import Wizard for each prepared CSV, using the recorded delimiter, encoding, column mapping, and destination table.
+1. Import only the verified files from `data/prepared/`, using the recorded delimiter, encoding, column mapping, destination table, and preprocessing batch ID. Import the corrected prepared dates, not the unchanged raw date fields.
 2. Import in dependency order: customers/products/sellers/category translations/geolocation, then orders, order items, payments, and reviews.
-3. Preserve source identifiers and nulls; do not synthesize business values during import.
-4. After each import, compare MySQL row counts with the prepared file and record warnings/errors from the Workbench result.
-5. Run read-only SQL validation queries after the import to check duplicate keys, orphan foreign-key values, date ranges, null patterns, and expected order coverage.
-6. Verify that every loaded order has the required item/payment/review relationships and that item and payment tables remain at their original grains.
-7. Record source counts, loaded counts, rejected counts, duration, batch ID, Workbench settings, and validation results in the load log.
-8. If the import fails, correct the prepared copy or destination mapping, preserve the failed-batch evidence, and rerun as a new controlled attempt.
+3. Preserve source identifiers and source nulls; load `order_approved_at_for_analysis` as the controlled derived analysis field and verify one approval imputation plus 28 documented product-count imputations. Do not synthesize any other business values during import. Keep order items, payments, and reviews at their source grains and do not import a pre-joined item/payment dataset.
+4. After each import, compare MySQL row counts with the prepared file. Reconcile the eight corrected orders to `date_corrections.csv`, verify source approval null count 1 versus analysis approval imputation count 1 and remaining analysis null count 0, and do not report a count mismatch or missing correction audit as a successful load.
+5. Run read-only SQL validation queries for primary keys, composite keys, orphan foreign keys, delivered-only status coverage, date ranges, null patterns, numeric domains, category/geolocation coverage, and expected order coverage.
+6. Confirm that the Step 3 zero-domain checks remain valid: no negative item or payment amounts, no invalid installment counts, no invalid review scores, one retained zero payment value, and ten retained zero freight values. Verify the 28 product-count imputations and zero payment/freight imputation or deletion counts; investigate context without changing valid zeroes.
+7. Verify that every loaded order has item, payment, and review relationships and that item and payment tables remain at their original grains.
+8. Reconcile the loaded totals to the Step 3 baseline: 1,208 orders, 1,208 customers, 1,500 items, 1,303 payments, 1,298 reviews, 1,096 products, 494 sellers, 57 translations, and 956 geolocation rows, adjusted only for explicitly approved quarantines.
+9. Record source counts, loaded counts, rejected counts, exception counts, duration, batch ID, Workbench settings, and validation results in the load log.
+10. If the import fails, preserve the failed-batch evidence, correct only the prepared copy or destination mapping, and rerun as a new controlled attempt.
+11. Load QA completed for the current batch: category translation 57, customers 1,208, geolocation 956, sellers 494, products 1,096, orders 1,208, order items 1,500, payments 1,303, and reviews 1,298. The source approval null count is 1, analysis approval null count is 0, approval imputation count is 1, product-attribute imputation count is 28, zero-payment count is 1, and zero-freight count is 10. Duplicate composite keys, invalid numeric domains, invalid review scores, invalid order-date sequences, and all checked orphan relationships returned zero. `local_infile` was enabled only for the controlled load and turned off afterward.
 
-Exit criteria: all intended rows are loaded into MySQL, counts reconcile to the prepared files, post-load SQL checks pass, and the load log contains the evidence.
+Exit criteria: all prepared rows are loaded, counts reconcile, post-load SQL checks pass, all eight date corrections and the one approval imputation are traceable, valid zero values are retained without imputation/deletion, and the load log contains the evidence. This exit criterion is met for the current import batch.
 
 ### Step 6 — Post-load preprocessing, EDA, and analytical modeling
 
-1. Query the loaded MySQL tables through SQLAlchemy and create validated Pandas analytical data frames.
-2. Create an order-grain fact dataset with one row per order and separately verified item, freight, and payment totals.
-3. Create customer-level metrics: order count, first purchase, last purchase, recency, frequency, tenure, and monetary value.
-4. Build cohorts from each person's first eligible purchase month and calculate monthly retained customers and retention rates.
-5. Build RFM segments using documented units and a fixed observation cutoff.
-6. Use Matplotlib and Seaborn for post-load EDA: distributions, monthly order trends, cohort-retention heatmaps, RFM segments, price/freight behavior, review scores, delivery timing, and data-quality exceptions.
-7. Prepare CLV transactions at customer/order grain. Use Pandas and NumPy for descriptive and, if justified, predictive calculations; do not claim a probabilistic CLV model unless its assumptions, convergence, and holdout evaluation are implemented and documented.
-8. Store reusable analytical outputs as MySQL views/tables or controlled extracts for Power BI and API consumption.
-9. Version analytical outputs with observation cutoff, forecast horizon, model version, and generation timestamp.
-10. Reconcile a sample of customers and orders manually across raw CSV, MySQL, EDA outputs, and analytical results.
+1. Query the loaded MySQL tables through SQLAlchemy and create validated Pandas analytical DataFrames. Use `order_approved_at_for_analysis` for lifecycle metrics, retain the source nullable approval field, and retain the eight date-correction flags, one approval imputation, 28 product-count imputation flags, and source-date audit columns.
+2. Create an order-grain fact dataset with one row per order and separately verified item, freight, and payment totals. Do not join raw items and payments before aggregation.
+3. Create customer-level metrics using `customer_unique_id` for person-level analysis. Reconcile 539 unique people and 380 repeat customers before building cohorts or RFM.
+4. Build cohorts from each person's first eligible delivered purchase month and calculate monthly retained customers and retention rates. Document the 22 observed purchase months and the absence of November 2016.
+5. Build RFM segments using documented units and a fixed historical observation cutoff. Do not use the current date as the cutoff.
+6. Calculate delivery-duration metrics from the corrected prepared dates and the analysis approval timeline, report eight boundary corrections and one approval imputation, and retain separate source-versus-prepared audit comparisons. Do not silently mix raw inconsistent intervals with corrected analytical intervals.
+7. Use Matplotlib and Seaborn for post-load EDA: distributions, monthly order trends, cohort-retention heatmaps, RFM segments, price/freight behavior, review scores, delivery timing, zero-value amounts, and data-quality exceptions.
+8. Preserve the one zero payment value and ten zero freight values as source observations, investigate their order context, document that neither was imputed or deleted, and state whether each analytical measure includes them.
+9. Prepare CLV transactions at customer/order grain. Use descriptive RFM and cohort analysis as the baseline; do not claim a probabilistic CLV model unless convergence, assumptions, and chronological holdout evaluation are documented.
+10. Store reusable analytical outputs as MySQL views/tables or controlled extracts for Power BI and API consumption.
+11. Version analytical outputs with observation cutoff, forecast horizon, model version, preprocessing batch ID, exception count, and generation timestamp.
+12. Reconcile a sample of customers and orders across prepared CSV, MySQL, EDA outputs, and analytical results. Consult raw CSVs only to verify provenance or investigate an exception; do not use raw values as analytical inputs.
 
-Exit criteria: post-load data quality is verified, EDA findings are recorded, analytical outputs are reproducible, and metric definitions are consistent.
+Exit criteria: post-load quality is verified, timestamp exceptions and zero-value amounts are documented, EDA findings are recorded, analytical outputs are reproducible, and metric definitions are consistent.
 
 ### Step 7 — Build and verify the FastAPI backend
 
-1. Configure FastAPI, the SQLAlchemy engine/session factory using PyMySQL, Pydantic settings/models, request lifecycle, and a health endpoint.
-2. Implement paginated customer and order listing endpoints with deterministic ordering.
-3. Implement customer lookup by `customer_id` and `customer_unique_id`.
-4. Implement order details with separately loaded items, payments, and reviews.
-5. Implement status/date filters and standard 404, 422, and 500 error behavior.
-6. Expose overview, cohort, RFM, and stored-CLV endpoints only after the underlying analytical outputs are reconciled.
-7. Add OpenAPI descriptions and tests for pagination, missing IDs, date validation, customer history, multi-item orders, and database read failures.
+1. Configure FastAPI, the SQLAlchemy engine/session factory using PyMySQL, Pydantic response models, request lifecycle, and health endpoints after the MySQL load QA passes. This is implemented in `backend/` and documented in [`step_7_fastapi_backend.md`](./step_7_fastapi_backend.md).
+2. Implement paginated customer and order listing endpoints with deterministic ordering and explicit delivered-order/status filtering.
+3. Implement customer lookup by `customer_id` and `customer_unique_id`; ensure person-level history uses `customer_unique_id` and reconciles to 539 unique people and 380 repeat customers.
+4. Implement order details with separately loaded items, payments, and reviews. Do not return duplicated item/payment totals caused by multi-grain joins.
+5. Implement Product, Seller, CategoryTranslation, and Geolocation catalog schemas and paginated lookup endpoints using direct parameterized SQL in the API layer.
+6. Implement status/date filters and standard 404, 422, and 500 error behavior. Document how the eight lifecycle-exception orders are represented.
+7. Expose summary, monthly-sales, category, cohort, RFM, delivery, and descriptive transaction endpoints after the analytical outputs and separate financial totals are reconciled. Predictive CLV is not exposed.
+8. Add OpenAPI descriptions and tests for pagination, missing IDs, date validation, customer history, catalog lookups, multi-item orders, duplicate review IDs, source-versus-analysis approval timestamps, valid zero payment/freight visibility, exception-flag visibility, and database read failures.
 
-Exit criteria: the service starts locally, `/docs` renders, endpoint tests pass, and API totals match direct MySQL/analytical outputs.
+Exit criteria: met for the current local MVP. The service starts locally, `/docs` renders, the focused integration checks pass, API totals reconcile to MySQL/analytics, and current exception/status behavior is documented in [`step_7_fastapi_backend.md`](./step_7_fastapi_backend.md).
 
 ### Step 8 — Prepare the Power BI semantic model
 
-1. Choose one governed source: direct read-only MySQL views for development/reporting or a controlled Pandas-generated CSV/Excel extract.
-2. Build a star schema with a fact table at the chosen grain and dimensions for date, customer, product, seller, geography, and category.
-3. Keep payments and order items at separate grains unless they have been safely aggregated before joining.
-4. Add a calendar table and mark it as the date table.
-5. Define Power Query transformations for types, null handling, category translation, and refresh parameters. Keep complex cleaning in Pandas/SQL so Power BI remains a reporting layer.
-6. Define DAX measures for orders, customers, repeat customers, item revenue, freight, payments, average order value, cohorts, retention, RFM, and CLV.
-7. Add a data-quality page showing refresh date, source row counts, rejected rows, and validation status.
+1. Choose one governed source: direct read-only MySQL views for development/reporting or a controlled Pandas-generated extract. Do not connect Power BI directly to the raw folder.
+2. Build a star schema with a fact table at the chosen order or order-item grain and dimensions for date, customer, product, seller, geography, and category.
+3. Keep payments and order items at separate grains unless they have been safely aggregated before joining. Preserve `item_revenue`, `freight_collected`, and `order_payment_total` as separate measures.
+4. Add a calendar table and mark it as the date table. Include the observed purchase period and the missing November 2016 month without fabricating rows.
+5. Define Power Query transformations for string identifiers/ZIP prefixes, nullable source fields, `order_approved_at_for_analysis`, category translation, null-handling flags, exception flags, and refresh parameters. Keep complex cleaning in Pandas/SQL so Power BI remains a reporting layer.
+6. Define DAX measures for orders, customers, repeat customers, item revenue, freight, payments, average order value, cohorts, retention, RFM, and CLV. Clearly label descriptive measures and revenue-based CLV.
+7. Add a data-quality page showing refresh date, source row counts, rejected rows, eight lifecycle exceptions, one approval imputation with zero remaining analysis nulls, one retained zero payment, ten retained zero freight values, zero imputation/deletion counts for those zeroes, and validation status.
 
 Exit criteria: Power BI totals reconcile to the MySQL analytical layer and refresh succeeds without manual file edits.
 
 ### Step 9 — Build the Power BI report pages
 
-1. Create an executive overview with orders, customers, repeat-customer rate, revenue/payment measures, average order value, and date filters.
-2. Create a cohort-retention page with acquisition cohorts, month offsets, retained customers, and retention percentages.
-3. Create a customer/RFM page with segment counts, recency/frequency/monetary distributions, and drill-through to customer history.
-4. Create an order/product page with category, seller, freight, price, payment type, review score, and delivery timing analysis.
-5. Create a CLV page only when model outputs pass the documented validation gates; label revenue-based CLV separately from profit.
-6. Add tooltips, definitions, filter behavior, and a limitations panel describing subset bias and geolocation representation.
+1. Create an executive overview with orders, customers, repeat-customer rate, separately defined item revenue/freight/payment measures, average order value, and date filters.
+2. Create a cohort-retention page with acquisition cohorts, month offsets, retained customers, and retention percentages. Label the results as subset-specific because repeat customers were prioritized.
+3. Create a customer/RFM page with segment counts, recency/frequency/monetary distributions, and drill-through to customer history using `customer_unique_id`.
+4. Create an order/product page with category, seller, freight, price, payment type, review score, delivery timing based on the analysis approval timestamp, zero-value measures, and lifecycle-exception counts.
+5. Create a CLV page only when model outputs pass the documented validation gates; label forecasts as revenue-based CLV, not profit, and show model version, cutoff, horizon, and limitations.
+6. Add tooltips, definitions, filter behavior, data-quality status, and a limitations panel describing delivered-only scope, repeat-customer prioritization, lifecycle exceptions, and representative geolocation.
 
 Exit criteria: each visual has a defined measure, slicers behave consistently, and the report tells users which metrics are descriptive versus predictive.
 
 ### Step 10 — Reconcile, publish, refresh, and hand off
 
-1. Run a final reconciliation checklist from raw counts through database counts, API totals, analytical views, and Power BI cards.
-2. Test report refresh from the governed source and record refresh duration and failures.
-3. Configure workspace permissions, gateway/connection settings, scheduled refresh, and row-level security only if required by the deployment context.
-4. Publish the report and its data source with a version number and refresh timestamp.
-5. Deliver the README, data dictionary, relationship diagram, metric definitions, ETL run log, API documentation, test results, and Power BI report link/file.
-6. Record known limitations, open decisions, rollback instructions, and the procedure for replacing the raw-data version.
+1. Run a final reconciliation checklist from the prepared-file counts, exception counts, and MySQL counts through analytical views, API totals, and Power BI cards. Use raw counts only as an immutable source baseline.
+2. Verify that the eight date corrections, one derived approval imputation, one retained zero payment, and ten retained zero freight values are traceable from the prepared files through MySQL, API, analytics, and reporting; use raw data only for provenance and confirm the source approval null remains unchanged.
+3. Test report refresh from the governed source and record refresh duration, failures, latest purchase date, and validation results.
+4. Configure workspace permissions, gateway/connection settings, scheduled refresh, and row-level security only if required by the deployment context.
+5. Publish the report and its data source with a version number, preprocessing batch ID, model version, and refresh timestamp.
+6. Deliver the README, data dictionary, relationship diagram, metric definitions, null-handling decision log, preprocessing and load logs, exception report, API documentation, test results, and Power BI report link/file.
+7. Record known limitations, including delivered-only status coverage, non-random repeat-customer sampling, eight invalid lifecycle sequences corrected in prepared data, one approval timestamp imputed only for analysis, and CLV data sufficiency concerns.
 
 ### Step 11 — Set up the future-data pipeline
 
 1. Define the arrival contract for future files: expected filenames/columns, batch ID, delivery location, encoding, date coverage, and checksum.
 2. Land every new delivery in a versioned raw-data folder without overwriting previous batches.
-3. Run the Step 2 Pandas/NumPy preprocessing and validation automatically; stop the pipeline when schema, key, type, or relationship checks fail.
-4. Load only approved data into MySQL using the approved direct table-import procedure (MySQL Workbench Table Data Import Wizard for manual batches). Keep a staging area, batch record, and quarantine path for rejected rows; use SQLAlchemy/PyMySQL for application and analytical access after loading.
-5. Run post-load reconciliation and refresh the analytical MySQL views/tables or controlled Pandas extract.
-6. Refresh the Power BI semantic model from the governed MySQL source or extract. Do not refresh from an unvalidated raw folder.
-7. Run Power BI refresh validation: row counts, latest date, order/customer totals, revenue/payment totals, and key report cards must reconcile to MySQL.
-8. Publish or promote the refreshed report only after validation succeeds; record batch ID, source version, refresh time, status, and failure details.
-9. Add retry, alerting, and rollback procedures so a failed preprocessing, MySQL load, or Power BI refresh does not replace the last known-good report.
+3. Run the Step 2 and Step 3 Pandas/NumPy preprocessing and validation automatically. Read and version `null_handling_decisions.csv` with each batch. Include row counts, datetime conversion, deterministic lifecycle-date correction, decision-file-driven null handling, key/composite-key checks, foreign-key coverage, review-score domains, numeric domains, zero-value checks, and audit-file creation. Impute only approved derived analysis fields; preserve source nulls; retain valid zero payment/freight values with zero imputation/deletion counts.
+4. Stop the pipeline when schema, key, type, relationship, or decision-log validation fails. Apply the documented lifecycle-date boundary corrections and approval-imputation decision consistently, retain source-date/source-null audit fields, verify zero remaining analysis approval nulls, confirm zero payment/freight rows were neither imputed nor deleted, and keep environment-specific file-write failures separate from data-quality status.
+5. Load only approved prepared data from `data/prepared/` into MySQL using the approved direct table-import procedure (MySQL Workbench Table Data Import Wizard for manual batches). Keep a staging area, batch record, and quarantine path for rejected rows; use SQLAlchemy/PyMySQL for application and analytical access after loading.
+6. Run post-load reconciliation and refresh the analytical MySQL views/tables or controlled Pandas extract, preserving exception flags and separate item/payment grains.
+7. Refresh the Power BI semantic model from the governed MySQL source or extract. Do not refresh from an unvalidated raw folder.
+8. Run Power BI refresh validation: row counts, latest date, order/customer totals, item revenue, freight, payment totals, exception counts, and key report cards must reconcile to MySQL.
+9. Publish or promote the refreshed report only after validation succeeds; record batch ID, source version, preprocessing status, refresh time, status, and failure details.
+10. Add retry, alerting, and rollback procedures so a failed preprocessing, MySQL load, or Power BI refresh does not replace the last known-good report.
 
 Pipeline sequence:
 
 ```text
 New raw files
     -> version/checksum/register batch
-    -> Pandas + NumPy pre-load validation
+    -> Pandas + NumPy pre-load validation and exception review
+    -> prepared-file and exception-artifact verification
     -> MySQL Workbench table-data import to MySQL
     -> SQLAlchemy/Pandas post-load EDA and analytical refresh
     -> Power BI dataset refresh
@@ -288,7 +315,7 @@ REST JSON responses / Swagger UI
               +--> Power BI / analytical star schema (later)
 ```
 
-Separation of concerns: Routes handle HTTP; schemas validate inputs/outputs; services enforce business logic; repositories/data-access functions execute queries; models define database tables; ETL is a separate repeatable process.
+Separation of concerns: Routes handle HTTP and direct parameterized SQL for this basic backend; schemas validate inputs/outputs; models define database tables; ETL is a separate repeatable process.
 
 ## 6. Database requirements and relational outline
 
@@ -357,6 +384,14 @@ Base prefix: /api/v1
 | GET | /orders | List orders | limit, offset, status, start_date, end_date |
 | GET | /orders/{order_id} | Order summary | Path ID |
 | GET | /orders/{order_id}/items | Line items | Path ID |
+| GET | /products | Paginated product catalog | limit, offset, category_name |
+| GET | /products/{product_id} | Product detail | Path ID |
+| GET | /sellers | Paginated seller catalog | limit, offset, state, city |
+| GET | /sellers/{seller_id} | Seller detail | Path ID |
+| GET | /category-translations | Category translations | limit, offset, category_name |
+| GET | /category-translations/{product_category_name} | Category translation detail | Path name |
+| GET | /geolocation | ZIP-prefix geolocation lookup | limit, offset, state, city |
+| GET | /geolocation/{zip_code_prefix} | Geolocation detail | Path ZIP prefix |
 | GET | /analytics/overview | Aggregate business metrics | Optional date range |
 | GET | /analytics/cohorts | Cohort retention data | start_month, end_month |
 | GET | /analytics/customers/{customer_unique_id}/rfm | Customer RFM | Path ID |
@@ -482,12 +517,6 @@ olist-ecommerce-engine/
 │   │   ├── customer.py
 │   │   ├── order.py
 │   │   └── analytics.py
-│   ├── repositories/
-│   └── services/
-│       ├── customer_service.py
-│       ├── order_service.py
-│       ├── cohort_service.py
-│       └── clv_service.py
 ├── scripts/
 │   ├── inspect_data.py
 │   ├── import_csv.py
@@ -507,7 +536,9 @@ olist-ecommerce-engine/
 └── docker-compose.yml  # later phase
 ```
 
-This is a proposed structure aligned to the research's separation of routes, models, schemas, services and configuration.
+This is a proposed future structure and must not be confused with the implemented tree. The actual backend tree is documented in [`step_7_fastapi_backend.md`](./step_7_fastapi_backend.md).
+
+For the implemented backend, keep ORM models in separate files under `backend/models/` and keep API response schemas in separate files under `backend/schemas/`. The catalog API uses `schemas/catalog.py` for Product, Seller, CategoryTranslation, and Geolocation responses. The catalog endpoints should remain read-only and use the existing loaded MySQL tables.
 
 ## 12. Implementation outline and milestone deliverables
 
@@ -532,6 +563,7 @@ This is a proposed structure aligned to the research's separation of routes, mod
 
 - Initialize app, settings, DB session dependency and /docs.
 - Build customers/orders listing and detail routes.
+- Add Product, Seller, CategoryTranslation, and Geolocation catalog schemas and read-only endpoints.
 - Implement validation, filtering, pagination, error handling.
 - Add automated endpoint tests and query-efficiency checks.
 - Deliverable: functioning FastAPI + MySQL backend.
@@ -572,6 +604,7 @@ This is a proposed structure aligned to the research's separation of routes, mod
 - [ ] MySQL Workbench table imports create/load all required tables, or exceptions are documented.
 - [ ] All nine CSVs are imported or exceptions documented.
 - [ ] Order, customer, item, payment and review relationships reconcile.
+- [ ] Product, seller, category translation, and geolocation catalog endpoints reconcile with ORM/database rows.
 - [ ] Customer history uses customer_unique_id.
 - [ ] Customer and order listing APIs return deterministic paginated results.
 - [ ] Order detail includes related records without duplicate totals.
@@ -637,4 +670,4 @@ This order delivers a demonstrable FastAPI + MySQL project even if the advanced 
 - [Microsoft Power BI star-schema guidance](https://learn.microsoft.com/en-us/power-bi/guidance/star-schema): consistent-grain fact tables, dimensions for filtering/grouping, and measures for summarization.
 - [Microsoft Power BI refresh guidance](https://learn.microsoft.com/en-us/power-bi/connect-data/refresh-data): refresh queries the underlying source and updates the semantic model and dependent report visuals; source schema changes require care.
 
-Final note: This document defines what to build. It does not claim that the APIs, database, predictive models, Power BI dashboard, or performance benchmarks have already been implemented.
+Final note: This document now combines verified current implementation facts with future requirements. The database load, FastAPI API, Step 6 analytical extracts, and nine-page Power BI report are implemented. Predictive CLV, authentication, production deployment, and performance benchmarks remain future work unless separately evidenced.

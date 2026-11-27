@@ -2,7 +2,7 @@
 
 **Project:** Enterprise E-Commerce Cohort and Customer Lifetime Value Engine  
 **Completed:** 19 November 2026  
-**Status:** Step 0 documented; two technical setup gaps remain before backend implementation.
+**Status:** Step 0 completed; the MySQL load, FastAPI backend, Step 6 extracts, and current Power BI report are implemented. Predictive CLV and production deployment remain future work.
 
 ## 1. Business objective
 
@@ -14,7 +14,7 @@ Build a reproducible e-commerce analytics solution that moves from the approved 
 - Power BI semantic models and reports; and
 - a controlled future-data process that loads a new approved batch into MySQL and refreshes Power BI.
 
-The project is an analytics and engineering portfolio system. It is not a shopping cart, checkout, payment-processing, or real-time marketplace application.
+The project is an analytics and engineering portfolio system. It is not a shopping cart, checkout, payment-processing, or real-time marketplace application. The current descriptive API and report are operational locally; they do not imply a predictive CLV model.
 
 ## 2. Questions the project should answer
 
@@ -51,8 +51,8 @@ This is a deliberately selected, repeat-customer-prioritized subset. It must not
 | EDA | Matplotlib, Seaborn | Quality checks and analytical visualizations |
 | Database | MySQL | Persistent storage and governed reporting source |
 | Database access | SQLAlchemy + PyMySQL | FastAPI and post-load analytical access to MySQL |
-| API validation | Pydantic | Settings, request models, and response models |
-| API | FastAPI | Customer, order, and analytical endpoints |
+| API validation | Pydantic | Settings, request models, response models, Field constraints, and field/model validators |
+| API | FastAPI | Customer, order, catalog, and analytical endpoints |
 | Reporting | Power BI | Semantic model, DAX measures, reports, and refresh |
 
 Initial CSV loading will use MySQL Workbench's Table Data Import Wizard into destination tables. SQLAlchemy/PyMySQL are for application and analytical access after the tables have been loaded; they are not the initial CSV import mechanism.

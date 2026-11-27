@@ -1,0 +1,54 @@
+{
+  "batch_id": "STEP3-20261121-001",
+  "status": "approved_for_step4_mysql_preparation",
+  "source": "data/raw/olist_trimmed_1500_relational",
+  "prepared_directory": "data/prepared",
+  "exception_artifacts": [
+    "data/quality/date_corrections.csv",
+    "data/quality/step3_preparation_summary.csv",
+    "data/quality/rejected_rows.csv"
+  ],
+  "prepared_files": {
+    "orders_prepared.csv": 1208,
+    "customers_prepared.csv": 1208,
+    "order_items_prepared.csv": 1500,
+    "payments_prepared.csv": 1303,
+    "reviews_prepared.csv": 1298,
+    "products_prepared.csv": 1096,
+    "sellers_prepared.csv": 494,
+    "category_translation_prepared.csv": 57,
+    "geolocation_prepared.csv": 956
+  },
+  "handling": {
+    "date_corrections": 8,
+    "source_missing_order_approved_at": 1,
+    "imputed_order_approved_at_for_analysis": 1,
+    "remaining_analysis_missing_order_approved_at": 0,
+    "repeated_review_id_rows": 254,
+    "zero_payment_rows_retained_as_valid": 1,
+    "zero_freight_rows_retained_as_valid": 10,
+    "zero_payment_rows_imputed": 0,
+    "zero_freight_rows_imputed": 0,
+    "product_attribute_count_rows_imputed": 28,
+    "product_attribute_count_imputation_method": "prepared_subset_median",
+    "orders_null_marker": "NULL",
+    "raw_files_modified": false
+  },
+  "approved_audit_columns": [
+    "source_order_approved_at",
+    "source_order_delivered_carrier_date",
+    "source_order_delivered_customer_date",
+    "date_correction_flag",
+    "date_correction_reason",
+    "order_approved_at_missing_flag",
+    "order_approved_at_for_analysis",
+    "order_approved_at_imputed_flag",
+    "order_approved_at_imputation_method",
+    "review_record_id",
+    "review_id_repeated_flag",
+    "payment_zero_value_flag",
+    "freight_zero_value_flag",
+    "product_attributes_imputed_flag",
+    "product_attributes_imputation_method"
+  ]
+}

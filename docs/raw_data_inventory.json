@@ -1,5 +1,5 @@
 {
-  "inventory_date": "2026-11-19",
+  "inventory_date": "2026-11-27",
   "source_directory": "../data/raw/olist_trimmed_1500_relational/",
   "source_description": "Final Olist real-data relational subset",
   "expected_files_present": true,

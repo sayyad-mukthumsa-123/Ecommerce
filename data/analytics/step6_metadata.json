@@ -1,0 +1,19 @@
+{
+  "step": 6,
+  "batch_id": "STEP3-20261121-001",
+  "eligible_status": "delivered",
+  "observation_cutoff": "2018-08-28",
+  "source_rows": {
+    "orders": 1208,
+    "items": 1500,
+    "payments": 1303
+  },
+  "unique_people": 539,
+  "repeat_customers": 380,
+  "date_corrections": 8,
+  "approval_imputations": 1,
+  "product_count_imputation_rows": 28,
+  "zero_payment_rows_retained": 1,
+  "zero_freight_rows_retained": 10,
+  "clv_status": "transaction_extract_only; probabilistic model not claimed"
+}

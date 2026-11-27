@@ -1,0 +1,11 @@
+check,value
+prepared_order_rows,1208
+corrected_date_rows,8
+source_missing_approval_rows,1
+imputed_approval_rows_for_analysis,1
+remaining_analysis_missing_approval_rows,0
+repeated_review_id_rows,254
+zero_payment_rows,1
+zero_payment_rows_imputed,0
+zero_freight_rows,10
+zero_freight_rows_imputed,0
